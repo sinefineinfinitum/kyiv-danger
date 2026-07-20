@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Direction Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:system-ui,-apple-system,sans-serif;background:#0d1117;overflow:hidden}
+        #map{width:100vw;height:100vh}
+        #error{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0d1117;color:#c9d1d9;font-size:16px;z-index:9999}
+        #error.hidden{display:none}
+        .leaflet-control-zoom a{background:#161b22!important;color:#c9d1d9!important;border-color:#30363d!important}
+        .leaflet-control-zoom a:hover{background:#21262d!important}
+        .leaflet-control-attribution{background:#161b22!important;color:#484f58!important;padding:2px 6px!important}
+        .leaflet-control-attribution a{color:#8b949e!important}
+        .dir-marker{background:none!important;border:none!important}
+        #info{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(22,27,34,0.92);backdrop-filter:blur(8px);border:1px solid #30363d;border-radius:10px;padding:10px 20px;font-size:13px;color:#c9d1d9;z-index:1000;text-align:center;pointer-events:none;white-space:nowrap}
+        #info .az{color:#f85149;font-weight:700}
+        #info .num{font-weight:600;font-variant-numeric:tabular-nums;color:#e6edf3}
+        #info .dim{color:#8b949e;font-size:12px}
+        #info .sep{padding:0 6px;color:#30363d}
+        @media(max-width:600px){#info{font-size:11px;padding:8px 14px;white-space:normal;width:92vw;line-height:1.6}}
+    </style>
+</head>
+<body>
+    <div id="error">No map data available. Please select a facade in the main app first.</div>
+    <div id="map"></div>
+    <div id="info"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        (function() {
+            function loadData() {
+                // 1. window.opener (direct parent access — works across tabs on same origin)
+                try {
+                    if (window.opener && !window.opener.closed) {
+                        var d = window.opener.__directionMapData;
+                        if (d && d.lat && d.lng && d.scores && d.scores.length) return d;
+                    }
+                } catch(e) {}
+
+                // 2. localStorage fallback
+                try {
+                    var raw = localStorage.getItem('directionMapData');
+                    if (raw) { var d = JSON.parse(raw); localStorage.removeItem('directionMapData'); if (d && d.lat && d.lng && d.scores && d.scores.length) return d; }
+                } catch(e) {}
+
+                return null;
+            }
+
+            var data = loadData();
+
+            if (!data) {
+                document.getElementById('error').classList.remove('hidden');
+                return;
+            }
+
+            document.documentElement.lang = data.lang || 'en';
+            var LBL = data.labels || {};
+            var lat = data.lat, lng = data.lng, bestAz = data.bestAz;
+            var scores = data.scores;
+
+            // ── SVG direction diagrams ──
+
+            var colors = { drone: '#f0883e', missile: '#58a6ff', ballistic: '#f85149' };
+            var typeKeys = ['drone', 'missile', 'ballistic'];
+            var typeLabels = {
+                drone: LBL.drone || 'Drones',
+                missile: LBL.missile || 'Missiles',
+                ballistic: LBL.ballistic || 'Ballistic'
+            };
+            var dirs = [
+                { label: LBL.compassN || 'N', angle: 0 },
+                { label: LBL.compassE || 'E', angle: 90 },
+                { label: LBL.compassS || 'S', angle: 180 },
+                { label: LBL.compassW || 'W', angle: 270 }
+            ];
+
+            function azSvgAngle(az) { return (az - 90) * Math.PI / 180; }
+
+            // max per-type exposure
+            var maxExp = {};
+            for (var k = 0; k < typeKeys.length; k++) {
+                var key = typeKeys[k];
+                maxExp[key] = 0.001;
+                for (var i = 0; i < scores.length; i++) {
+                    if (scores[i].types && scores[i].types[key] > maxExp[key]) maxExp[key] = scores[i].types[key];
+                }
+            }
+
+            var maxComb = 0.001;
+            for (var i = 0; i < scores.length; i++) {
+                if (scores[i].combined > maxComb) maxComb = scores[i].combined;
+            }
+
+            function compassSvg(w, h, r, drawFn) {
+                var cx = w / 2, cy = h / 2;
+                var s = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg">';
+                s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="rgba(13,17,23,0.6)" stroke="#30363d" stroke-width="0.8"/>';
+                s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r * 0.5).toFixed(1) + '" fill="none" stroke="#21262d" stroke-width="0.3"/>';
+                for (var di = 0; di < dirs.length; di++) {
+                    var a = azSvgAngle(dirs[di].angle);
+                    s += '<text x="' + (cx + (r + 7) * Math.cos(a)).toFixed(1) + '" y="' + (cy + (r + 7) * Math.sin(a)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" fill="#8b949e" font-size="7" font-weight="600">' + dirs[di].label + '</text>';
+                }
+                s += drawFn(cx, cy, r);
+                s += '</svg>';
+                return s;
+            }
+
+            function perTypePetals(cx, cy, r, key) {
+                var s = '';
+                var maxE = maxExp[key];
+                for (var i = 0; i < scores.length; i++) {
+                    var exp = scores[i].types ? scores[i].types[key] : 0;
+                    if (exp <= 0) continue;
+                    var val = exp / maxE;
+                    if (val < 0.005) continue;
+                    var halfA = 2.3 * Math.PI / 180;
+                    var angle = azSvgAngle(scores[i].azimuth);
+                    var len = val * r;
+                    var pts = cx + ',' + cy + ' '
+                        + (cx + len * Math.cos(angle - halfA)).toFixed(1) + ',' + (cy + len * Math.sin(angle - halfA)).toFixed(1) + ' '
+                        + (cx + len * Math.cos(angle + halfA)).toFixed(1) + ',' + (cy + len * Math.sin(angle + halfA)).toFixed(1);
+                    s += '<polygon points="' + pts + '" fill="' + colors[key] + '" opacity="0.85"/>';
+                }
+                return s;
+            }
+
+            function combinedPetals(cx, cy, r) {
+                var s = '';
+                for (var i = 0; i < scores.length; i++) {
+                    var d = scores[i];
+                    var cval = d.combined / maxComb;
+                    if (cval < 0.005) continue;
+                    var r0 = 0;
+                    var halfA = 2.3 * Math.PI / 180;
+                    for (var t = 0; t < typeKeys.length; t++) {
+                        var key = typeKeys[t];
+                        var w = d.weights ? d.weights[key] : 0;
+                        if (!w || w <= 0) continue;
+                        var r1 = r0 + (w / maxComb) * r;
+                        var angle = azSvgAngle(d.azimuth);
+                        var pts = (cx + r0 * Math.cos(angle - halfA)).toFixed(1) + ',' + (cy + r0 * Math.sin(angle - halfA)).toFixed(1) + ' '
+                            + (cx + r1 * Math.cos(angle - halfA)).toFixed(1) + ',' + (cy + r1 * Math.sin(angle - halfA)).toFixed(1) + ' '
+                            + (cx + r1 * Math.cos(angle + halfA)).toFixed(1) + ',' + (cy + r1 * Math.sin(angle + halfA)).toFixed(1) + ' '
+                            + (cx + r0 * Math.cos(angle + halfA)).toFixed(1) + ',' + (cy + r0 * Math.sin(angle + halfA)).toFixed(1);
+                        s += '<polygon points="' + pts + '" fill="' + colors[key] + '" opacity="0.85"/>';
+                        r0 = r1;
+                    }
+                }
+                return s;
+            }
+
+            // ── Generate 4 separate SVGs ──
+
+            var combS = 180, combR = 72;
+            var combSvg = compassSvg(combS, combS, combR, function(cx, cy, r) { return combinedPetals(cx, cy, r); });
+
+            var miniS = 66, miniR = 26;
+            var droneSvg = compassSvg(miniS, miniS, miniR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'drone'); });
+            var missileSvg = compassSvg(miniS, miniS, miniR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'missile'); });
+            var ballisticSvg = compassSvg(miniS, miniS, miniR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'ballistic'); });
+
+            // ── Direction line ──
+
+            var lineLenDeg = 0.008;
+            var bestAzRad = bestAz * Math.PI / 180;
+            var cosLat = Math.cos(lat * Math.PI / 180);
+            var endLat = lat + lineLenDeg * Math.cos(bestAzRad);
+            var endLng = lng + lineLenDeg * Math.sin(bestAzRad) / cosLat;
+
+            var arrLen = 0.0004;
+            var arrAngle = Math.atan2(lng - endLng, lat - endLat);
+            var arrPts = [
+                [lat, lng],
+                [lat - arrLen * Math.cos(arrAngle - 0.5), lng - arrLen * Math.sin(arrAngle - 0.5) / cosLat],
+                [lat - arrLen * Math.cos(arrAngle + 0.5), lng - arrLen * Math.sin(arrAngle + 0.5) / cosLat]
+            ];
+
+            // ── Map ──
+
+            var map = L.map('map', { center: [lat, lng], zoom: 17, zoomControl: true });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                maxZoom: 19
+            }).addTo(map);
+
+            // offset (degrees) ~30m at Kyiv latitude
+            var off = 0.0003;
+
+            function addMarker(latOff, lngOff, svg, sz) {
+                var icon = L.divIcon({
+                    className: 'dir-marker',
+                    html: svg,
+                    iconSize: [sz, sz],
+                    iconAnchor: [sz / 2, sz / 2]
+                });
+                L.marker([lat + latOff, lng + lngOff], { icon: icon, interactive: true }).addTo(map);
+            }
+
+            addMarker(0, 0, combSvg, combS);                          // combined — center
+            addMarker(off, -off, droneSvg, miniS);                    // drone — NW
+            addMarker(off, off, missileSvg, miniS);                   // missile — NE
+            addMarker(-off * 1.5, 0, ballisticSvg, miniS);            // ballistic — S
+
+            // direction line from threat to building center
+            L.polyline([[endLat, endLng], [lat, lng]], {
+                color: '#f85149', weight: 2, dashArray: '6,4', opacity: 0.7
+            }).addTo(map);
+
+            L.polygon(arrPts, {
+                color: '#f85149', fillColor: '#f85149', fillOpacity: 0.7, weight: 1
+            }).addTo(map);
+
+            // ── Info bar ──
+
+            var coordLabel = LBL.openMapCoord || 'Coordinates';
+            var threatLabel = LBL.openMapThreat || 'Threat direction';
+            document.getElementById('info').innerHTML =
+                '<span class="dim">' + coordLabel + ':</span>'
+                + ' <span class="num">' + lat.toFixed(6) + '</span>, <span class="num">' + lng.toFixed(6) + '</span>'
+                + '<span class="sep">&middot;</span>'
+                + '<span class="dim">' + threatLabel + ':</span> <span class="az">' + bestAz + '&deg;</span>';
+        })();
+    </script>
+</body>
+</html>
