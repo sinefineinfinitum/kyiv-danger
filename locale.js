@@ -9,6 +9,7 @@ const LOCALES = {
         totalObjects: 'Всього обʼєктів',
         loading: 'Завантаження моделі...',
         loadError: 'Помилка завантаження моделі',
+        searchPlaceholder: 'Пошук адреси...',
 
         drone: 'Дрони',
         droneFull: 'Дрони (10°)',
@@ -53,6 +54,7 @@ const LOCALES = {
         totalObjects: 'Всего объектов',
         loading: 'Загрузка модели...',
         loadError: 'Ошибка загрузки модели',
+        searchPlaceholder: 'Поиск адреса...',
 
         drone: 'Дроны',
         droneFull: 'Дроны (10°)',
@@ -98,6 +100,7 @@ const LOCALES = {
         totalObjects: 'Total objects',
         loading: 'Loading model...',
         loadError: 'Error loading model',
+        searchPlaceholder: 'Search address...',
 
         drone: 'Drones',
         droneFull: 'Drones (10°)',
@@ -159,6 +162,9 @@ function applyI18N() {
     });
     document.querySelectorAll('[data-i18n-aria]').forEach(el => {
         el.setAttribute('aria-label', I18N[el.dataset.i18nAria] || el.getAttribute('aria-label'));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.placeholder = I18N[el.dataset.i18nPlaceholder] || el.placeholder;
     });
     document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === currentLang);
