@@ -289,8 +289,8 @@ export async function ensureBuildingsAt(lat, lng) {
         console.log(`📍 Already loaded area around ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
         return;
     }
-    const dLat = 0.003;
-    const dLng = 0.004;
+    const dLat = 0.0018;
+    const dLng = 0.0028;
     const minLat = lat - dLat;
     const maxLat = lat + dLat;
     const minLng = lng - dLng;
