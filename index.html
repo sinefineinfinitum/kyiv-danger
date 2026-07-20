@@ -163,6 +163,12 @@
             <span class="map-title" data-i18n="openMapTitle">Threat Direction Map</span>
             <span class="map-close" id="map-close">&times;</span>
         </div>
+        <div class="map-switcher" id="map-switcher">
+            <button class="ms-btn active" data-view="combined">Combined</button>
+            <button class="ms-btn" data-view="drone" style="color:#f0883e">Drone</button>
+            <button class="ms-btn" data-view="missile" style="color:#58a6ff">Missile</button>
+            <button class="ms-btn" data-view="ballistic" style="color:#f85149">Ballistic</button>
+        </div>
         <div id="map-inner"></div>
         <div id="map-info">
             <span class="map-coords"></span>
@@ -226,7 +232,7 @@
 
     document.getElementById('map-close').addEventListener('click', () => {
         document.getElementById('map-panel').style.display = 'none';
-        if (window._dangerMap) { window._dangerMap.remove(); window._dangerMap = null; }
+        if (window._dangerMap) { window._dangerMap.remove(); window._dangerMap = null; window._diagramMarker = null; }
         window.dispatchEvent(new Event('resize'));
     });
 
@@ -238,3 +244,5 @@
 <script type="module" src="app.js"></script>
 </body>
 </html>
+
+

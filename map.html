@@ -157,10 +157,9 @@
             var combS = 180, combR = 72;
             var combSvg = compassSvg(combS, combS, combR, function(cx, cy, r) { return combinedPetals(cx, cy, r); });
 
-            var miniS = 66, miniR = 26;
-            var droneSvg = compassSvg(miniS, miniS, miniR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'drone'); });
-            var missileSvg = compassSvg(miniS, miniS, miniR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'missile'); });
-            var ballisticSvg = compassSvg(miniS, miniS, miniR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'ballistic'); });
+            var droneSvg = compassSvg(combS, combS, combR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'drone'); });
+            var missileSvg = compassSvg(combS, combS, combR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'missile'); });
+            var ballisticSvg = compassSvg(combS, combS, combR, function(cx, cy, r) { return perTypePetals(cx, cy, r, 'ballistic'); });
 
             // ── Direction line ──
 
@@ -171,11 +170,11 @@
             var endLng = lng + lineLenDeg * Math.sin(bestAzRad) / cosLat;
 
             var arrLen = 0.0004;
-            var arrAngle = Math.atan2(lng - endLng, lat - endLat);
+            var arrAngle = Math.atan2(endLng - lng, endLat - lat);
             var arrPts = [
-                [lat, lng],
-                [lat - arrLen * Math.cos(arrAngle - 0.5), lng - arrLen * Math.sin(arrAngle - 0.5) / cosLat],
-                [lat - arrLen * Math.cos(arrAngle + 0.5), lng - arrLen * Math.sin(arrAngle + 0.5) / cosLat]
+                [endLat, endLng],
+                [endLat - arrLen * Math.cos(arrAngle - 0.5), endLng - arrLen * Math.sin(arrAngle - 0.5) / cosLat],
+                [endLat - arrLen * Math.cos(arrAngle + 0.5), endLng - arrLen * Math.sin(arrAngle + 0.5) / cosLat]
             ];
 
             // ── Map ──
@@ -201,12 +200,12 @@
             }
 
             addMarker(0, 0, combSvg, combS);                          // combined — center
-            addMarker(off, -off, droneSvg, miniS);                    // drone — NW
-            addMarker(off, off, missileSvg, miniS);                   // missile — NE
-            addMarker(-off * 1.5, 0, ballisticSvg, miniS);            // ballistic — S
+            addMarker(off, -off, droneSvg, combS);                    // drone — NW
+            addMarker(off, off, missileSvg, combS);                   // missile — NE
+            addMarker(-off * 1.5, 0, ballisticSvg, combS);            // ballistic — S
 
             // direction line from threat to building center
-            L.polyline([[endLat, endLng], [lat, lng]], {
+            L.polyline([[lat, lng], [endLat, endLng]], {
                 color: '#f85149', weight: 2, dashArray: '6,4', opacity: 0.7
             }).addTo(map);
 

@@ -763,6 +763,41 @@ canvas {
     color: var(--text-muted);
 }
 
+.map-switcher {
+    display: flex;
+    gap: 2px;
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.map-switcher .ms-btn {
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.map-switcher .ms-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--text-secondary);
+}
+
+.map-switcher .ms-btn.active {
+    background: rgba(255,255,255,0.12);
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
 .leaflet-control-zoom a {
     background: var(--bg-secondary) !important;
     color: var(--text-primary) !important;
@@ -942,3 +977,4 @@ canvas {
         display: none;
     }
 }
+
