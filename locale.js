@@ -18,8 +18,8 @@ const LOCALES = {
         ballistic: 'Балістичні ракети',
         ballisticFull: 'Балістичні ракети (60°)',
 
-        openToAttack: '▸ відкрито до атаки',
-        closedByBuilding: '▸ недоступний для атаки',
+        openToAttack: '▸ фронт відкритий до прямої атаки',
+        closedByBuilding: '▸ фронт недоступний для прямої атаки',
         mouseHint: '{lmb} ЛМК — фокус · {rmb} ПМК — фасад',
         controlsHint: '{lmb} ЛМК — фокус камери\n{rmb} ПМК — вибір фасаду\nEsc — скасувати вибір фасаду',
 
@@ -63,8 +63,8 @@ const LOCALES = {
         ballistic: 'Балистические ракеты',
         ballisticFull: 'Балистические ракеты (60°)',
 
-        openToAttack: '▸ открыто к атаке',
-        closedByBuilding: '▸ недоступен для атаки',
+        openToAttack: '▸ фронт открыт к прямой атаке',
+        closedByBuilding: '▸ фронт недоступен для прямой атаки',
         mouseHint: '{lmb} ЛКМ — фокус · {rmb} ПКМ — фасад',
         controlsHint: '{lmb} ЛКМ — фокус камеры\n{rmb} ПКМ — выбор фасада\nEsc — отменить выбор фасада',
 
@@ -109,8 +109,8 @@ const LOCALES = {
         ballistic: 'Ballistic Missiles',
         ballisticFull: 'Ballistic Missiles (60°)',
 
-        openToAttack: '▸ open to attack',
-        closedByBuilding: '▸ inaccessible to attack',
+        openToAttack: '▸ front open to direct attack',
+        closedByBuilding: '▸ front closed to direct attack',
         mouseHint: '{lmb} LMB — focus · {rmb} RMB — facade',
         controlsHint: '{lmb} LMB — camera focus\n{rmb} RMB — select facade\nEsc — cancel facade selection',
 
