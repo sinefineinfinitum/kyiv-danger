@@ -186,7 +186,7 @@ let mouseDownPos = null;
 
 renderer.domElement.addEventListener('mousedown', e => { mouseDownPos = { x: e.clientX, y: e.clientY }; });
 
-renderer.domElement.addEventListener('mouseup', event => {
+renderer.domElement.addEventListener('mouseup', async event => {
     if (!mouseDownPos) return;
     const dx = event.clientX - mouseDownPos.x;
     const dy = event.clientY - mouseDownPos.y;
@@ -208,8 +208,11 @@ renderer.domElement.addEventListener('mouseup', event => {
         ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
         : new THREE.Vector3(0, 1, 0);
 
-    updateFacadeInfo(point, normal, hit.object);
-    if (event.button === 0) {
+    if (event.button === 2) {
+        const gps = toGPS(point);
+        await ensureBuildingsAt(gps.lat, gps.lng);
+        updateFacadeInfo(point, normal, hit.object);
+    } else if (event.button === 0) {
         const newTarget = point.clone();
         const startTarget = controls.target.clone();
         const startPos = camera.position.clone();
