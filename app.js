@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { computeDirectionScores, renderDirectionDiagram } from './direction-diagram.js';
 
-const MODEL_URL = 'https://corsproxy.io/?url=https://github.com/sinefineinfinitum/kyiv-danger/releases/download/0.0.1/map_kyiv_ukraine.glb';
+const MODEL_URL = 'https://kyiv-danger-map.s3.eu-north-1.amazonaws.com/map_kyiv_ukraine.glb';
 
 const container = document.getElementById('canvas-container');
 const loadBar = document.getElementById('loadBar');
