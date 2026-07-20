@@ -341,6 +341,8 @@ function processScene(root) {
     );
     const ASSUMED_REAL_XZ_METERS = 20000;
     unitsPerMeter = xzExtent / ASSUMED_REAL_XZ_METERS;
+    console.log('DEBUG: sceneCenter', sceneCenter, 'xzExtent', xzExtent, 'unitsPerMeter', unitsPerMeter);
+    console.log('DEBUG: bounds min', sceneBounds3.min, 'max', sceneBounds3.max);
     ground.position.y = box.min.y - 0.5;
 
     const saved = localStorage.getItem('camera');
