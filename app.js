@@ -1,15 +1,19 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { computeDirectionScores, renderDirectionDiagram } from './direction-diagram.js';
 
-const MODEL_URL = 'https://kyiv-danger-map.s3.eu-north-1.amazonaws.com/map_kyiv_ukraine.glb';
+const OSM_API = 'https://overpass.kumi.systems/api/interpreter';
+const OSM_FALLBACK_API = 'https://overpass-api.de/api/interpreter';
+const OSM_BBOX = '50.447,30.518,50.453,30.530';
+const LOCAL_BUILDINGS_URL = 'data/buildings.json';
 
 const container = document.getElementById('canvas-container');
 const loadBar = document.getElementById('loadBar');
 const loadingDiv = document.getElementById('loading');
 const facadeInfoEl = document.getElementById('facade-info');
 const facadeInfoBody = document.getElementById('facade-info-body');
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
 
 const I = window.I18N;
 
@@ -90,6 +94,7 @@ let buildingMeshes = [];
 let cityAvgDanger = 0;
 let unitsPerMeter = 1;
 let cityAvgSamples = [];
+let loadedBounds = null;
 
 const DEG = Math.PI / 180;
 const occlusionRaycaster = new THREE.Raycaster();
@@ -316,33 +321,125 @@ window.rebuildAttacks = rebuildAttacks;
     });
 });
 
-// ── Scene Processing ───────────────────────────────────
+// ── OSM Building Generation ──────────────────────────
 
-function processScene(root) {
-    root.traverse(child => {
-        if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            if (child.material) {
-                child.material.shadowSide = THREE.DoubleSide;
-                child.material.needsUpdate = true;
-            }
-            if (child !== ground) buildingMeshes.push(child);
-        }
+const BUILDING_COLORS = {
+    residential: 0x5a6a7a,
+    apartment: 0x5a7a8a,
+    house: 0x6a7a5a,
+    commercial: 0x5a7a8a,
+    retail: 0x6a7a7a,
+    industrial: 0x6a6a5a,
+    warehouse: 0x7a7a6a,
+    office: 0x5a6a8a,
+    hotel: 0x6a7a9a,
+    school: 0x7a6a7a,
+    university: 0x6a6a8a,
+    hospital: 0x8a6a6a,
+    church: 0x7a6a5a,
+    default: 0x6a7a7a
+};
+
+function latLngToMeters(lat, lng) {
+    const dLat = lat - KYIV_CENTER_LAT;
+    const dLng = lng - KYIV_CENTER_LNG;
+    const cosLat = Math.cos(KYIV_CENTER_LAT * Math.PI / 180);
+    const metersNorth = dLat * 111320;
+    const metersEast = dLng * (111320 * cosLat);
+    return { x: metersEast, z: -metersNorth };
+}
+
+function osmHeight(tags) {
+    if (tags.height) {
+        const h = parseFloat(tags.height);
+        if (!isNaN(h) && h > 0 && h < 200) return h;
+    }
+    const levels = tags['building:levels'];
+    if (levels) {
+        const n = parseInt(levels, 10);
+        if (!isNaN(n) && n > 0 && n < 100) return n * 3;
+    }
+    const ul = tags['building:levels:aboveground'];
+    if (ul) {
+        const n = parseInt(ul, 10);
+        if (!isNaN(n) && n > 0 && n < 100) return n * 3;
+    }
+    return 3;
+}
+
+function osmBuildingType(tags) {
+    const t = tags.building;
+    if (BUILDING_COLORS[t]) return t;
+    return 'default';
+}
+
+function osmWayToMesh(way) {
+    if (!way.geometry || way.geometry.length < 3) return null;
+
+    const coords = way.geometry.map(p => latLngToMeters(p.lat, p.lon));
+
+    const shape = new THREE.Shape();
+    shape.moveTo(coords[0].x, -coords[0].z);
+    for (let i = 1; i < coords.length; i++) {
+        shape.lineTo(coords[i].x, -coords[i].z);
+    }
+
+    const height = osmHeight(way.tags || {});
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
+    geo.rotateX(-Math.PI / 2);
+    geo.computeVertexNormals();
+
+    const type = osmBuildingType(way.tags || {});
+    const mat = new THREE.MeshStandardMaterial({
+        color: BUILDING_COLORS[type],
+        roughness: 0.85,
+        metalness: 0.1,
+        shadowSide: THREE.DoubleSide
     });
-    const box = new THREE.Box3().setFromObject(root);
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+}
+
+async function tryLoadOSMBuildings(bbox) {
+    const query = `[out:json][timeout:300][maxsize:1073741824][bbox:${bbox || OSM_BBOX}];
+(way["building"];);
+out geom;`;
+
+    const urls = [OSM_API, OSM_FALLBACK_API];
+    let lastErr;
+    for (const url of urls) {
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 180000);
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'data=' + encodeURIComponent(query),
+                signal: controller.signal
+            });
+            clearTimeout(timer);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return await res.json();
+        } catch (err) {
+            lastErr = err;
+            console.warn('Overpass attempt failed for ' + url, err.message);
+        }
+    }
+    throw lastErr;
+}
+
+function initSceneFromOSMBuildings(buildingGroup) {
+    scene.add(buildingGroup);
+
+    const box = new THREE.Box3().setFromObject(buildingGroup);
     box.getCenter(sceneCenter);
     sceneSize = box.getSize(new THREE.Vector3()).length();
     sceneBounds3 = box.clone();
+    unitsPerMeter = 1;
 
-    const xzExtent = Math.max(
-        sceneBounds3.max.x - sceneBounds3.min.x,
-        sceneBounds3.max.z - sceneBounds3.min.z
-    );
-    const ASSUMED_REAL_XZ_METERS = 20000;
-    unitsPerMeter = xzExtent / ASSUMED_REAL_XZ_METERS;
-    console.log('DEBUG: sceneCenter', sceneCenter, 'xzExtent', xzExtent, 'unitsPerMeter', unitsPerMeter);
-    console.log('DEBUG: bounds min', sceneBounds3.min, 'max', sceneBounds3.max);
     ground.position.y = box.min.y - 0.5;
 
     const saved = localStorage.getItem('camera');
@@ -360,28 +457,92 @@ function processScene(root) {
     updateSunPosition();
 }
 
-// ── Model Loading ──────────────────────────────────────
+// ── OSM Loading ──────────────────────────────────────
 
-const loader = new GLTFLoader();
-loader.load(
-    MODEL_URL,
-    (gltf) => {
-        scene.add(gltf.scene);
-        processScene(gltf.scene);
+function createMeshesFromOSMData(data) {
+    const group = new THREE.Group();
+    let count = 0;
+    for (const el of data.elements) {
+        if (el.type === 'way' && el.geometry) {
+            const mesh = osmWayToMesh(el);
+            if (mesh) {
+                group.add(mesh);
+                buildingMeshes.push(mesh);
+                count++;
+            }
+        }
+    }
+    return { group, count };
+}
+
+async function ensureBuildingsAt(lat, lng) {
+    if (loadedBounds && lat >= loadedBounds.minLat && lat <= loadedBounds.maxLat &&
+        lng >= loadedBounds.minLng && lng <= loadedBounds.maxLng) return;
+
+    const dLat = 0.009;
+    const dLng = 0.014;
+    const minLat = Math.min(lat - dLat, loadedBounds?.minLat ?? lat);
+    const maxLat = Math.max(lat + dLat, loadedBounds?.maxLat ?? lat);
+    const minLng = Math.min(lng - dLng, loadedBounds?.minLng ?? lng);
+    const maxLng = Math.max(lng + dLng, loadedBounds?.maxLng ?? lng);
+    const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
+
+    try {
+        const data = await tryLoadOSMBuildings(bbox);
+        const { group, count } = createMeshesFromOSMData(data);
+        if (count === 0) return;
+        scene.add(group);
+
+        const box = new THREE.Box3().setFromObject(group);
+        sceneBounds3.expandByPoint(box.min).expandByPoint(box.max);
+        sceneBounds3.getCenter(sceneCenter);
+        sceneSize = sceneBounds3.getSize(new THREE.Vector3()).length();
+
+        loadedBounds = {
+            minLat: Math.min(loadedBounds?.minLat ?? minLat, minLat),
+            maxLat: Math.max(loadedBounds?.maxLat ?? maxLat, maxLat),
+            minLng: Math.min(loadedBounds?.minLng ?? minLng, minLng),
+            maxLng: Math.max(loadedBounds?.maxLng ?? maxLng, maxLng)
+        };
+
+        buildCitySamples();
+        computeCityAverage();
+        if (currentHighlight) updateFacadeInfo(currentHighlight.point, currentHighlight.normal, currentHighlight.mesh);
+    } catch (err) {
+        console.warn('Failed to load buildings at', lat, lng, err.message);
+    }
+}
+
+async function tryLoadLocalBuildings() {
+    const res = await fetch(LOCAL_BUILDINGS_URL);
+    if (!res.ok) throw new Error('Local file not found');
+    return await res.json();
+}
+
+async function initFromOSM() {
+    try {
+        let data;
+        try {
+            data = await tryLoadLocalBuildings();
+        } catch {
+            console.warn('Local file failed, trying Overpass API...');
+            data = await tryLoadOSMBuildings();
+        }
+        const { group, count } = createMeshesFromOSMData(data);
+        if (count === 0) throw new Error('No buildings found');
+        initSceneFromOSMBuildings(group);
         buildCitySamples();
         rebuildAttacks();
+        const [minLat, minLng, maxLat, maxLng] = OSM_BBOX.split(',').map(Number);
+        loadedBounds = { minLat, minLng, maxLat, maxLng };
         loadingDiv.style.display = 'none';
-    },
-    (progress) => {
-        if (progress.lengthComputable) {
-            loadBar.style.width = `${(progress.loaded / progress.total * 100)}%`;
-        }
-    },
-    (error) => {
-        console.error('Error loading model:', error);
-        loadingDiv.textContent = I.loadError;
+    } catch (err) {
+        console.error('OSM error:', err);
+        loadingDiv.textContent = I.loadError + ': ' + err.message;
     }
-);
+}
+
+initFromOSM();
 
 // ── Danger Colors ──────────────────────────────────────
 
@@ -619,6 +780,9 @@ renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 
 // ── Keyboard ───────────────────────────────────────────
 
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+
 window.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         removeHighlight();
@@ -626,6 +790,33 @@ window.addEventListener('keydown', e => {
         lastScores = null;
         facadeInfoEl.style.display = 'none';
         document.getElementById('direction-diagram').style.display = 'none';
+        document.getElementById('search-results').style.display = 'none';
+        searchInput.blur();
+        return;
+    }
+
+    if (document.activeElement === searchInput || document.activeElement?.tagName === 'INPUT') return;
+
+    const key = e.key.toLowerCase();
+    const panDist = sceneSize * 0.015;
+
+    if ('wasdqwe'.includes(key)) {
+        camera.getWorldDirection(_forward);
+        _forward.y = 0;
+        if (_forward.lengthSq() < 0.001) _forward.z = -1;
+        _forward.normalize();
+        _right.crossVectors(_forward, _up).normalize();
+
+        switch (key) {
+            case 'w': controls.target.addScaledVector(_forward, panDist); camera.position.addScaledVector(_forward, panDist); break;
+            case 's': controls.target.addScaledVector(_forward, -panDist); camera.position.addScaledVector(_forward, -panDist); break;
+            case 'a': controls.target.addScaledVector(_right, -panDist); camera.position.addScaledVector(_right, -panDist); break;
+            case 'd': controls.target.addScaledVector(_right, panDist); camera.position.addScaledVector(_right, panDist); break;
+            case 'q': controls.target.y -= panDist; camera.position.y -= panDist; break;
+            case 'e': controls.target.y += panDist; camera.position.y += panDist; break;
+        }
+        controls.update();
+        e.preventDefault();
     }
 });
 
@@ -649,8 +840,9 @@ document.getElementById('zoom-in').addEventListener('click', (e) => {
     const cam = controls.object;
     const dir = new THREE.Vector3().subVectors(controls.target, cam.position);
     const dist = dir.length();
+    const step = Math.min(dist * 0.3, 200);
     if (dist < 2) return;
-    cam.position.addScaledVector(dir.normalize(), dist * 0.2);
+    cam.position.addScaledVector(dir.normalize(), step);
     controls.update();
 });
 
@@ -658,7 +850,9 @@ document.getElementById('zoom-out').addEventListener('click', (e) => {
     e.stopPropagation();
     const cam = controls.object;
     const dir = new THREE.Vector3().subVectors(cam.position, controls.target);
-    cam.position.addScaledVector(dir.normalize(), dir.length() * 0.25);
+    const dist = dir.length();
+    const step = Math.max(dist * 0.3, 50);
+    cam.position.addScaledVector(dir.normalize(), step);
     controls.update();
 });
 
@@ -852,5 +1046,82 @@ function openDirectionMap() {
 }
 
 window.openDirectionMap = openDirectionMap;
+
+// ── Address Search ─────────────────────────────────────
+
+let searchTimer = null;
+
+searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const q = searchInput.value.trim();
+    if (q.length < 3) { searchResults.style.display = 'none'; return; }
+    searchTimer = setTimeout(() => geocodeSearch(q), 350);
+});
+
+searchInput.addEventListener('blur', () => {
+    setTimeout(() => { searchResults.style.display = 'none'; }, 200);
+});
+
+searchInput.addEventListener('focus', () => {
+    if (searchResults.children.length > 0) searchResults.style.display = 'block';
+});
+
+async function geocodeSearch(query) {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&q='
+        + encodeURIComponent(query)
+        + '&limit=5&bounded=1&viewbox=30.41,50.33,30.67,50.57';
+
+    try {
+        const res = await fetch(url, { headers: { 'User-Agent': 'DangerMap/1.0' } });
+        if (!res.ok) return;
+        const data = await res.json();
+        showResults(data);
+    } catch (err) {
+        console.warn('Search error:', err);
+    }
+}
+
+function showResults(data) {
+    searchResults.innerHTML = '';
+    if (!data || data.length === 0) { searchResults.style.display = 'none'; return; }
+
+    for (const r of data) {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        const label = r.display_name.split(',').slice(0, 3).join(',');
+        div.innerHTML = `<span>${label}</span><span class="result-type">${r.type || ''}</span>`;
+        div.addEventListener('mousedown', e => e.preventDefault());
+        div.addEventListener('click', () => {
+            flyToAddress(parseFloat(r.lat), parseFloat(r.lon));
+            searchResults.style.display = 'none';
+            searchInput.value = label;
+            searchInput.blur();
+        });
+        searchResults.appendChild(div);
+    }
+    searchResults.style.display = 'block';
+}
+
+async function flyToAddress(lat, lng) {
+    await ensureBuildingsAt(lat, lng);
+    const meters = latLngToMeters(lat, lng);
+    const target = new THREE.Vector3(meters.x, 0, meters.z);
+
+    const startTarget = controls.target.clone();
+    const startPos = camera.position.clone();
+    const offset = camera.position.clone().sub(controls.target);
+    const endPos = target.clone().add(offset);
+    const duration = 600;
+    const startTime = performance.now();
+
+    function tick(now) {
+        const t = Math.min((now - startTime) / duration, 1);
+        const ease = 1 - (1 - t) * (1 - t) * (1 - t);
+        controls.target.lerpVectors(startTarget, target, ease);
+        camera.position.lerpVectors(startPos, endPos, ease);
+        if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+}
 
 export { ATTACK_TYPES, DEG, unitsPerMeter, getFacadeBasis, computeAdaptiveHalf, isBlocked };
