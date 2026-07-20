@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { ATTACK_TYPES, DEG, unitsPerMeter, getFacadeBasis, computeAdaptiveHalf, isBlocked } from './app.js';
+import { DEG, unitsPerMeter } from './scene.js';
+import { ATTACK_TYPES, getFacadeBasis, computeAdaptiveHalf, isBlocked } from './danger.js';
 
 // Temp vectors for hot function
 const _v = new THREE.Vector3();
