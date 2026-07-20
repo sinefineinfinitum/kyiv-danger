@@ -490,11 +490,12 @@ function createDirectionRays(point, normal, exposure, mesh) {
         if (e.count === 0) continue;
 
         const { az } = readTypeParams(t.key);
+        const srcAz = az + Math.PI;
         const alpha = t.angle * DEG;
         _attackDir.set(
-            -Math.cos(alpha) * Math.sin(az),
+            -Math.cos(alpha) * Math.sin(srcAz),
             Math.sin(alpha),
-            Math.cos(alpha) * Math.cos(az)
+            Math.cos(alpha) * Math.cos(srcAz)
         );
 
         for (const corner of _corners) {
@@ -684,7 +685,7 @@ function toGPS(point) {
     const dx = point.x - sceneCenter.x;
     const dz = point.z - sceneCenter.z;
     const metersEast = dx / unitsPerMeter;
-    const metersNorth = dz / unitsPerMeter;
+    const metersNorth = -dz / unitsPerMeter;
     const lat = KYIV_CENTER_LAT + metersNorth / 111320;
     const lng = KYIV_CENTER_LNG + metersEast / (111320 * Math.cos(KYIV_CENTER_LAT * Math.PI / 180));
     return { lat: lat, lng: lng };
