@@ -9,7 +9,7 @@ const LOCALES = {
         count: 'Кількість',
         direction: 'Напрямок',
         totalObjects: 'Всього обʼєктів',
-        loading: 'Завантаження моделі...',
+        loading: 'Завантаження моделі... може бути довго',
         loadError: 'Помилка завантаження моделі',
         searchPlaceholder: 'Пошук адреси...',
 
@@ -54,7 +54,7 @@ const LOCALES = {
         count: 'Количество',
         direction: 'Направление',
         totalObjects: 'Всего объектов',
-        loading: 'Загрузка модели...',
+        loading: 'Загрузка модели может быть долгой...',
         loadError: 'Ошибка загрузки модели',
         searchPlaceholder: 'Поиск адреса...',
 
@@ -100,7 +100,7 @@ const LOCALES = {
         count: 'Count',
         direction: 'Direction',
         totalObjects: 'Total objects',
-        loading: 'Loading model...',
+        loading: 'Loading model... may take time',
         loadError: 'Error loading model',
         searchPlaceholder: 'Search address...',
 
