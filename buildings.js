@@ -2,8 +2,6 @@ import * as THREE from 'three';
 import { scene, buildingMeshes, sceneCenter, setSceneCenter, sceneSize, setSceneSize, sceneBounds3, expandSceneBounds3, unitsPerMeter, setUnitsPerMeter, ground, camera, controls, loadBar, loadingDiv, updateSunPosition, setupCamera, setSceneBounds3 } from './scene.js';
 import { buildCitySamples, computeCityAverage } from './danger.js';
 
-const OSM_API = 'https://overpass.kumi.systems/api/interpreter';
-const OSM_FALLBACK_API = 'https://overpass-api.de/api/interpreter';
 const LOCAL_BUILDINGS_URL = 'data/buildings.json';
 
 const OVERPASS_API_URLS = [
@@ -12,6 +10,14 @@ const OVERPASS_API_URLS = [
     'https://z.overpass-api.de/api/interpreter',
     'https://overpass-api.rack66.com/api/interpreter',
 ];
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
 
 const KYIV_CENTER_LAT = 50.4501;
 const KYIV_CENTER_LNG = 30.5234;
@@ -154,17 +160,25 @@ async function tryLoadOSMBuildings(bbox) {
     const query = `[out:json][timeout:25][bbox:${bbox || '50.447,30.518,50.453,30.530'}];
 (way["building"];);
 out geom;`;
-    let lastErr;
-    for (const url of OVERPASS_API_URLS) {
-        for (const method of ['POST', 'GET']) {
-            try {
-                return await tryOverpass(url, query, method);
-            } catch (err) {
-                lastErr = err;
-                console.warn(`⚠ Overpass failed: ${url} (${method}) — ${err.message}`);
+    const urls = shuffle([...OVERPASS_API_URLS]);
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+        for (const url of urls) {
+            for (const method of ['POST', 'GET']) {
+                try {
+                    return await tryOverpass(url, query, method);
+                } catch (err) {
+                    console.warn(`⚠ Overpass failed: ${url} (${method}) attempt ${attempt + 1}/3 — ${err.message}`);
+                }
             }
         }
+        if (attempt < 2) {
+            const delay = 1000 * 2 ** attempt;
+            console.warn(`⏳ Retrying Overpass in ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+        }
     }
+
     try {
         console.warn('⚠ Trying OSM API directly...');
         const [minLat, minLng, maxLat, maxLng] = bbox.split(',').map(Number);
