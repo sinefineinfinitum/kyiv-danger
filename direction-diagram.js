@@ -161,8 +161,91 @@ export function renderDirectionDiagram(scores, normal) {
         topRow.appendChild(subWrap);
     }
 
+    const bigSize = 190;
+    const bigR = 78;
+    const maxComb = Math.max(...scores.map(d => d.combined), 0.001);
+
+    const bigSvg = document.createElementNS(ns, 'svg');
+    bigSvg.setAttribute('width', bigSize); bigSvg.setAttribute('height', bigSize);
+    bigSvg.setAttribute('viewBox', `0 0 ${bigSize} ${bigSize}`);
+
+    const bgC = document.createElementNS(ns, 'circle');
+    bgC.setAttribute('cx', bigSize / 2); bgC.setAttribute('cy', bigSize / 2); bgC.setAttribute('r', bigR);
+    bgC.setAttribute('fill', 'rgba(13,17,23,0.5)'); bgC.setAttribute('stroke', '#30363d'); bgC.setAttribute('stroke-width', '1');
+    bigSvg.appendChild(bgC);
+
+    for (const pct of [0.25, 0.5, 0.75]) {
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', bigSize / 2); c.setAttribute('cy', bigSize / 2); c.setAttribute('r', bigR * pct);
+        c.setAttribute('fill', 'none'); c.setAttribute('stroke', '#21262d'); c.setAttribute('stroke-width', '0.4');
+        bigSvg.appendChild(c);
+    }
+
+    for (const d of scores) {
+        const cval = d.combined / maxComb;
+        if (cval < 0.005) continue;
+        const angle = (d.azimuth - 90) * Math.PI / 180;
+        const halfA = 2.5 * Math.PI / 180;
+        const cosA1 = Math.cos(angle - halfA);
+        const sinA1 = Math.sin(angle - halfA);
+        const cosA2 = Math.cos(angle + halfA);
+        const sinA2 = Math.sin(angle + halfA);
+
+        let r0 = 0;
+        for (const t of ATTACK_TYPES) {
+            const w = d.weights[t.key];
+            if (!w || w <= 0) continue;
+            const r1 = r0 + (w / maxComb) * bigR;
+            const pts = [
+                `${bigSize / 2 + r0 * cosA1},${bigSize / 2 + r0 * sinA1}`,
+                `${bigSize / 2 + r1 * cosA1},${bigSize / 2 + r1 * sinA1}`,
+                `${bigSize / 2 + r1 * cosA2},${bigSize / 2 + r1 * sinA2}`,
+                `${bigSize / 2 + r0 * cosA2},${bigSize / 2 + r0 * sinA2}`
+            ].join(' ');
+            const seg = document.createElementNS(ns, 'polygon');
+            seg.setAttribute('points', pts);
+            seg.setAttribute('fill', t.color);
+            seg.setAttribute('opacity', '0.85');
+            const tip = document.createElementNS(ns, 'title');
+            const pct = (d.combined * 100).toFixed(1);
+            const tPct = (w * 100).toFixed(1);
+            tip.textContent = `${d.azimuth}°: ${pct}% · ${window.I18N[t.key]}: ${tPct}%`;
+            seg.appendChild(tip);
+            bigSvg.appendChild(seg);
+            r0 = r1;
+        }
+    }
+
+    const I = window.I18N;
+    const dirs = [
+        { label: I.compassN || 'N', angle: 0 },
+        { label: I.compassE || 'E', angle: 90 },
+        { label: I.compassS || 'S', angle: 180 },
+        { label: I.compassW || 'W', angle: 270 }
+    ];
+    for (const c of dirs) {
+        const a = (c.angle - 90) * Math.PI / 180;
+        const txt = document.createElementNS(ns, 'text');
+        txt.setAttribute('x', bigSize / 2 + (bigR + 12) * Math.cos(a));
+        txt.setAttribute('y', bigSize / 2 + (bigR + 12) * Math.sin(a));
+        txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('dominant-baseline', 'central');
+        txt.setAttribute('fill', '#8b949e'); txt.setAttribute('font-size', '11'); txt.setAttribute('font-weight', '700');
+        txt.textContent = c.label;
+        bigSvg.appendChild(txt);
+    }
+
+    const bigWrap = document.createElement('div');
+    bigWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;margin-top:4px';
+    bigWrap.appendChild(bigSvg);
+
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center';
     wrapper.appendChild(topRow);
+    if (activeTypes.length > 0) {
+        const sep = document.createElement('hr');
+        sep.className = 'dd-sep';
+        wrapper.appendChild(sep);
+        wrapper.appendChild(bigWrap);
+    }
     container.appendChild(wrapper);
 }
