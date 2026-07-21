@@ -299,6 +299,15 @@ document.getElementById('zoom-out').addEventListener('click', (e) => {
 
 // ── UI Sync ──
 
+let _rebuildRaf = null;
+function scheduleRebuild() {
+    if (_rebuildRaf) cancelAnimationFrame(_rebuildRaf);
+    _rebuildRaf = requestAnimationFrame(() => {
+        _rebuildRaf = null;
+        rebuildAttacks();
+    });
+}
+
 function rebuildAttacks() {
     let total = 0;
     for (const t of ATTACK_TYPES) {
@@ -318,14 +327,14 @@ window.rebuildAttacks = rebuildAttacks;
         const val = parseInt(el.value, 10);
         setParams(type, val, getAzDeg(type));
         el.value = getCount(type);
-        rebuildAttacks();
+        scheduleRebuild();
     });
     document.getElementById(`${type}-az`).addEventListener('input', () => {
         const el = document.getElementById(`${type}-az`);
         const val = parseFloat(el.value);
         setParams(type, getCount(type), val);
         el.value = getAzDeg(type);
-        rebuildAttacks();
+        scheduleRebuild();
     });
 });
 
