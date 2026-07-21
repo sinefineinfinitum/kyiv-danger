@@ -165,11 +165,11 @@ function updateFacadeInfo(point, normal, mesh) {
         <div class="fi-row"><span class="fi-label">${I.dangerCityAvg}</span><span class="fi-val">${(cityAvgDanger * 100).toFixed(1)}%</span></div>
         <hr class="fi-divider">
         ${perType}
-        <button class="fi-map-btn" onclick="window.openDirectionMap()">${I.openMap || 'Map'}</button>
     `;
     facadeInfoEl.style.display = 'block';
 
     lastScores = computeDirectionScores(point, normal, mesh);
+    updateMap();
     const ddEl = document.getElementById('direction-diagram');
     if (lastScores.length > 0) {
         renderDirectionDiagram(lastScores, normal);
@@ -394,16 +394,62 @@ function compassSvg(w, h, r, dirs, drawFn) {
     return s;
 }
 
-// Open Leaflet map panel overlaid with threat direction petal diagrams and a direction line
-function openDirectionMap() {
-    if (!currentHighlight || !lastScores || lastScores.length === 0) return;
+// ── Map ──
 
-    const { point, normal } = currentHighlight;
+let _dangerMap = null;
+let _diagramMarker = null;
+let _diagramLine = null;
+let _diagramArrow = null;
+let _diagrams = null;
+let _diagramLat = null;
+let _diagramLng = null;
+
+function initMap() {
+    if (_dangerMap) return;
+    _dangerMap = L.map('map-inner', { center: [50.45, 30.52], zoom: 13, zoomControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+    }).addTo(_dangerMap);
+    setTimeout(() => _dangerMap.invalidateSize(), 100);
+}
+
+function updateDiagramView(view) {
+    if (!_diagrams || !_dangerMap) return;
+    const d = _diagrams[view];
+    if (!d) return;
+    const icon = L.divIcon({ className: 'dir-marker', html: d.svg, iconSize: [d.sz, d.sz], iconAnchor: [d.sz / 2, d.sz / 2] });
+    if (_diagramMarker) { _diagramMarker.setIcon(icon); }
+    else { _diagramMarker = L.marker([_diagramLat, _diagramLng], { icon, interactive: true }).addTo(_dangerMap); }
+    document.querySelectorAll('.ms-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+}
+
+document.getElementById('map-switcher').addEventListener('click', e => {
+    const view = e.target.dataset.view;
+    if (view) updateDiagramView(view);
+});
+
+function updateMap() {
+    if (!_dangerMap) initMap();
+    if (_diagramMarker) { _dangerMap.removeLayer(_diagramMarker); _diagramMarker = null; }
+    if (_diagramLine) { _dangerMap.removeLayer(_diagramLine); _diagramLine = null; }
+    if (_diagramArrow) { _dangerMap.removeLayer(_diagramArrow); _diagramArrow = null; }
+    _diagrams = null;
+    const infoEl = document.getElementById('map-info');
+
+    if (!currentHighlight || !lastScores || lastScores.length === 0) {
+        infoEl.innerHTML = '';
+        return;
+    }
+
+    const { point } = currentHighlight;
     const gps = toGPS(point);
     const lat = Number(gps.lat), lng = Number(gps.lng);
 
     const best = lastScores.reduce((a, b) => a.combined > b.combined ? a : b);
     const bestAz = best.azimuth;
+
+    _dangerMap.setView([lat, lng], 17);
 
     const dirs = [
         { label: I.compassN || 'N', angle: 0 },
@@ -427,7 +473,7 @@ function openDirectionMap() {
 
     const halfA = 2.3 * Math.PI / 180;
 
-    function perTypePetals(cx, cy, r, key) {
+    const perTypePetals = (cx, cy, r, key) => {
         let s = '';
         const maxE = maxExp[key];
         for (const d of lastScores) {
@@ -440,9 +486,9 @@ function openDirectionMap() {
             s += `<polygon points="${cx},${cy} ${(cx + len * Math.cos(angle - halfA)).toFixed(1)},${(cy + len * Math.sin(angle - halfA)).toFixed(1)} ${(cx + len * Math.cos(angle + halfA)).toFixed(1)},${(cy + len * Math.sin(angle + halfA)).toFixed(1)}" fill="${colors[key]}" opacity="0.85"/>`;
         }
         return s;
-    }
+    };
 
-    function combinedPetals(cx, cy, r) {
+    const combinedPetals = (cx, cy, r) => {
         let s = '';
         for (const d of lastScores) {
             const cval = d.combined / maxComb;
@@ -458,29 +504,18 @@ function openDirectionMap() {
             }
         }
         return s;
-    }
+    };
 
     const combSvg = compassSvg(180, 180, 72, dirs, (cx, cy, r) => combinedPetals(cx, cy, r));
     const droneSvg = compassSvg(180, 180, 72, dirs, (cx, cy, r) => perTypePetals(cx, cy, r, 'drone'));
     const missileSvg = compassSvg(180, 180, 72, dirs, (cx, cy, r) => perTypePetals(cx, cy, r, 'missile'));
     const ballisticSvg = compassSvg(180, 180, 72, dirs, (cx, cy, r) => perTypePetals(cx, cy, r, 'ballistic'));
 
-    const panel = document.getElementById('map-panel');
-    panel.style.display = 'flex';
+    _diagrams = { combined: { svg: combSvg, sz: 180 }, drone: { svg: droneSvg, sz: 180 }, missile: { svg: missileSvg, sz: 180 }, ballistic: { svg: ballisticSvg, sz: 180 } };
+    _diagramLat = lat;
+    _diagramLng = lng;
 
-    if (window._dangerMap) {
-        window._dangerMap.remove();
-        window._dangerMap = null;
-    }
-    window._diagramMarker = null;
-
-    const map = L.map('map-inner', { center: [lat, lng], zoom: 17, zoomControl: true });
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19
-    }).addTo(map);
-
+    // Direction line
     const lineLenDeg = 0.008;
     const bestAzRad = bestAz * Math.PI / 180;
     const cosLat = Math.cos(lat * Math.PI / 180);
@@ -495,38 +530,21 @@ function openDirectionMap() {
         [endLat - arrLen * Math.cos(arrAngle + 0.5), endLng - arrLen * Math.sin(arrAngle + 0.5) / cosLat]
     ];
 
-    L.polyline([[lat, lng], [endLat, endLng]], { color: '#f85149', weight: 2, dashArray: '6,4', opacity: 0.7 }).addTo(map);
-    L.polygon(arrPts, { color: '#f85149', fillColor: '#f85149', fillOpacity: 0.7, weight: 1 }).addTo(map);
+    _diagramLine = L.polyline([[lat, lng], [endLat, endLng]], { color: '#f85149', weight: 2, dashArray: '6,4', opacity: 0.7 }).addTo(_dangerMap);
+    _diagramArrow = L.polygon(arrPts, { color: '#f85149', fillColor: '#f85149', fillOpacity: 0.7, weight: 1 }).addTo(_dangerMap);
 
-    const diagrams = { combined: { svg: combSvg, sz: 180 }, drone: { svg: droneSvg, sz: 180 }, missile: { svg: missileSvg, sz: 180 }, ballistic: { svg: ballisticSvg, sz: 180 } };
+    updateDiagramView('combined');
 
-    function updateDiagram(view) {
-        const d = diagrams[view];
-        const icon = L.divIcon({ className: 'dir-marker', html: d.svg, iconSize: [d.sz, d.sz], iconAnchor: [d.sz / 2, d.sz / 2] });
-        if (window._diagramMarker) { window._diagramMarker.setIcon(icon); }
-        else { window._diagramMarker = L.marker([lat, lng], { icon, interactive: true }).addTo(map); }
-        document.querySelectorAll('.ms-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-    }
-
-    document.getElementById('map-switcher').addEventListener('click', e => {
-        const view = e.target.dataset.view;
-        if (view) updateDiagram(view);
-    });
-
-    window._dangerMap = map;
-    updateDiagram('combined');
-
-    setTimeout(() => map.invalidateSize(), 50);
-
-    document.getElementById('map-info').innerHTML =
+    infoEl.innerHTML =
         `<span>${I.openMapCoord || 'Coordinates'}: ${lat.toFixed(6)}, ${lng.toFixed(6)}</span>`
         + `<span class="map-sep">&middot;</span>`
         + `<span>${I.openMapThreat || 'Threat direction'}: <strong style="color:#f85149">${bestAz}°</strong></span>`;
 
-    window.dispatchEvent(new Event('resize'));
+    setTimeout(() => _dangerMap.invalidateSize(), 50);
 }
 
-window.openDirectionMap = openDirectionMap;
+window.updateMap = updateMap;
+initMap();
 
 // ── Address Search ──
 

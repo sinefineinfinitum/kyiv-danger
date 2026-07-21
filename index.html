@@ -164,10 +164,11 @@
             <div id="dd-container"></div>
         </div>
     </div>
-    <div id="map-panel" style="display:none">
+    <button id="view-toggle" aria-label="Toggle view">3D</button>
+    <div id="map-panel">
         <div id="map-header">
             <span class="map-title" data-i18n="openMapTitle">Threat Direction Map</span>
-            <span class="map-close" id="map-close">&times;</span>
+            <span class="map-toggle" id="map-toggle">&minus;</span>
         </div>
         <div class="map-switcher" id="map-switcher">
             <button class="ms-btn active" data-view="combined">Combined</button>
@@ -237,9 +238,27 @@
         t.textContent = hidden ? '−' : '+';
     });
 
-    document.getElementById('map-close').addEventListener('click', () => {
-        document.getElementById('map-panel').style.display = 'none';
-        if (window._dangerMap) { window._dangerMap.remove(); window._dangerMap = null; window._diagramMarker = null; }
+    document.getElementById('map-toggle').addEventListener('click', () => {
+        const panel = document.getElementById('map-panel');
+        const collapsed = panel.classList.toggle('collapsed');
+        document.getElementById('map-toggle').textContent = collapsed ? '+' : '−';
+        window.dispatchEvent(new Event('resize'));
+    });
+
+    document.getElementById('view-toggle').addEventListener('click', () => {
+        const area = document.getElementById('view-area');
+        const cur = area.dataset.view || 'split';
+        const btn = document.getElementById('view-toggle');
+        if (cur === 'split') {
+            area.dataset.view = 'scene';
+            btn.textContent = 'Map';
+        } else if (cur === 'scene') {
+            area.dataset.view = 'map';
+            btn.textContent = 'Split';
+        } else {
+            delete area.dataset.view;
+            btn.textContent = '3D';
+        }
         window.dispatchEvent(new Event('resize'));
     });
 
