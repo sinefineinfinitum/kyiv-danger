@@ -513,7 +513,7 @@ async function geocodeSearch(query) {
         + '&limit=5&bounded=1&viewbox=30.41,50.33,30.67,50.57';
 
     try {
-        const res = await fetch(url, { headers: { 'User-Agent': 'DangerMap/1.0' } });
+        const res = await fetch(url, { headers: { 'User-Agent': 'DangerMap/1.0 (https://github.com/sinefineinfinitum/kyiv-danger)' } });
         if (!res.ok) return;
         const data = await res.json();
         showResults(data);
