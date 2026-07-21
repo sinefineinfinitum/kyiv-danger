@@ -472,6 +472,8 @@ canvas {
 }
 
 .legend-open { color: var(--accent-ballistic); }
+.legend-open span,
+.legend-closed span { white-space: pre-line; }
 .legend-closed { color: var(--accent-safe); }
 
 .legend-hint {
