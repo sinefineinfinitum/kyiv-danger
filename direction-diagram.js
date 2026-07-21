@@ -21,8 +21,6 @@ export function computeDirectionScores(point, normal, mesh) {
     for (const t of ATTACK_TYPES) {
         typeCounts[t.key] = getCount(t.key);
     }
-    const hasAny = Object.values(typeCounts).some(c => c > 0);
-    if (!hasAny) return [];
 
     const scores = [];
     for (let az = 0; az < 360; az += 5) {
@@ -33,8 +31,6 @@ export function computeDirectionScores(point, normal, mesh) {
 
         for (const t of ATTACK_TYPES) {
             const count = typeCounts[t.key];
-            if (count === 0) { perType[t.key] = 0; continue; }
-
             const alpha = t.angle * DEG;
             _attackDir.set(
                 -Math.cos(alpha) * Math.sin(azRad),
@@ -54,10 +50,12 @@ export function computeDirectionScores(point, normal, mesh) {
             const openCount = 4 - blockedCount;
             const exposure = (openCount / 4) * facingDot;
             perType[t.key] = exposure;
-            const w = count * t.weight;
-            const angleFactor = Math.sin(alpha);
-            wSum += exposure * w * angleFactor;
-            wTotal += w * angleFactor;
+            if (count > 0) {
+                const w = count * t.weight;
+                const angleFactor = Math.sin(alpha);
+                wSum += exposure * w * angleFactor;
+                wTotal += w * angleFactor;
+            }
         }
 
         const combined = wTotal > 0 ? wSum / wTotal : 0;
