@@ -415,13 +415,16 @@ function initMap() {
 }
 
 function updateDiagramView(view) {
-    if (!_diagrams || !_dangerMap) return;
+    if (!_dangerMap) return;
+    document.querySelectorAll('.ms-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    if (view === 'combined' || !_diagrams || !_diagrams[view]) {
+        if (_diagramMarker) { _dangerMap.removeLayer(_diagramMarker); _diagramMarker = null; }
+        return;
+    }
     const d = _diagrams[view];
-    if (!d) return;
     const icon = L.divIcon({ className: 'dir-marker', html: d.svg, iconSize: [d.sz, d.sz], iconAnchor: [d.sz / 2, d.sz / 2] });
     if (_diagramMarker) { _diagramMarker.setIcon(icon); }
     else { _diagramMarker = L.marker([_diagramLat, _diagramLng], { icon, interactive: true }).addTo(_dangerMap); }
-    document.querySelectorAll('.ms-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
 }
 
 document.getElementById('map-switcher').addEventListener('click', e => {
@@ -533,7 +536,7 @@ function updateMap() {
     _diagramLine = L.polyline([[lat, lng], [endLat, endLng]], { color: '#f85149', weight: 2, dashArray: '6,4', opacity: 0.7 }).addTo(_dangerMap);
     _diagramArrow = L.polygon(arrPts, { color: '#f85149', fillColor: '#f85149', fillOpacity: 0.7, weight: 1 }).addTo(_dangerMap);
 
-    updateDiagramView('combined');
+    updateDiagramView('drone');
 
     infoEl.innerHTML =
         `<span>${I.openMapCoord || 'Coordinates'}: ${lat.toFixed(6)}, ${lng.toFixed(6)}</span>`
