@@ -184,10 +184,50 @@ function updateFacadeInfo(point, normal, mesh) {
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let mouseDownPos = null;
+let _touchActive = false;
 
-renderer.domElement.addEventListener('mousedown', e => { mouseDownPos = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('mousedown', e => {
+    if (_touchActive) { _touchActive = false; return; }
+    mouseDownPos = { x: e.clientX, y: e.clientY };
+});
+
+renderer.domElement.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+        mouseDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+}, { passive: true });
+
+renderer.domElement.addEventListener('touchend', async e => {
+    _touchActive = true;
+    if (!mouseDownPos) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - mouseDownPos.x;
+    const dy = touch.clientY - mouseDownPos.y;
+    mouseDownPos = null;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) return;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    if (intersects.length === 0) return;
+    const hit = intersects[0];
+    if (hit.object === ground || hit.object.userData.isImpact) return;
+
+    const point = hit.point;
+    const normal = hit.face
+        ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+        : new THREE.Vector3(0, 1, 0);
+
+    const gps = toGPS(point);
+    await ensureBuildingsAt(gps.lat, gps.lng);
+    updateFacadeInfo(point, normal, hit.object);
+});
 
 renderer.domElement.addEventListener('mouseup', async event => {
+    if (_touchActive) { _touchActive = false; return; }
     if (!mouseDownPos) return;
     const dx = event.clientX - mouseDownPos.x;
     const dy = event.clientY - mouseDownPos.y;
