@@ -2,12 +2,10 @@ import * as THREE from 'three';
 import { buildingMeshes, unitsPerMeter, _up, DEG, sceneCenter, sceneBounds3 } from './scene.js';
 import { getCount, getAzDeg, getAzRad } from './params.js';
 
-const I = window.I18N;
-
 export const ATTACK_TYPES = [
-    { key: 'drone',     color: '#f0883e', label: I.drone,        angle: 10, weight: 1.0 },
-    { key: 'missile',   color: '#58a6ff', label: I.missile,     angle: 40, weight: 1.5 },
-    { key: 'ballistic', color: '#f85149', label: I.ballistic, angle: 60, weight: 2.0 }
+    { key: 'drone',     color: '#f0883e', angle: 10, weight: 1.0 },
+    { key: 'missile',   color: '#58a6ff', angle: 40, weight: 1.5 },
+    { key: 'ballistic', color: '#f85149', angle: 60, weight: 2.0 }
 ];
 
 const _v = new THREE.Vector3();

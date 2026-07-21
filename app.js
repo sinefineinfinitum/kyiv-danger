@@ -151,7 +151,7 @@ function updateFacadeInfo(point, normal, mesh) {
         const pct = (e.exposure * 100).toFixed(0);
         const statusColor = e.exposure === 0 ? '#3fb950' : e.exposure < 1 ? '#f0883e' : '#f85149';
         perType += `<div class="fi-row">
-            <span class="fi-label" style="color:${t.color}">${t.label} ×${e.count} (${e.angle}°)</span>
+            <span class="fi-label" style="color:${t.color}">${I[t.key]} ×${e.count} (${e.angle}°)</span>
             <span class="fi-val" style="color:${statusColor}">${openCount}/4 (${pct}%)</span>
         </div>`;
     }

@@ -156,7 +156,7 @@ export function renderDirectionDiagram(scores, normal) {
         subWrap.appendChild(svg);
         const label = document.createElement('div');
         label.style.cssText = `font-size:9px;color:${typeDef.color};text-align:center;margin-top:2px;font-weight:600`;
-        label.textContent = typeDef.label;
+        label.textContent = window.I18N[typeDef.key];
         subWrap.appendChild(label);
         topRow.appendChild(subWrap);
     }
@@ -209,7 +209,7 @@ export function renderDirectionDiagram(scores, normal) {
             const tip = document.createElementNS(ns, 'title');
             const pct = (d.combined * 100).toFixed(1);
             const tPct = (w * 100).toFixed(1);
-            tip.textContent = `${d.azimuth}°: ${pct}% · ${t.label}: ${tPct}%`;
+            tip.textContent = `${d.azimuth}°: ${pct}% · ${window.I18N[t.key]}: ${tPct}%`;
             seg.appendChild(tip);
             bigSvg.appendChild(seg);
             r0 = r1;

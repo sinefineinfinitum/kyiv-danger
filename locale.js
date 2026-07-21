@@ -141,13 +141,16 @@ const LOCALES = {
 };
 
 let currentLang = localStorage.getItem('lang') || 'uk';
-window.I18N = LOCALES[currentLang];
+window.I18N = Object.assign({}, LOCALES[currentLang]);
 
 const _mbtn = (side) =>
     `<svg class="mbtn" viewBox="0 0 14 22" width="9" height="14"><rect x="1" y="1" width="12" height="20" rx="6" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="7" y1="1" x2="7" y2="12" stroke="currentColor" stroke-width="0.8" opacity="0.3"/><rect x="${side === 'l' ? 2 : 8}" y="2" width="4" height="7" rx="2" fill="currentColor" opacity="0.6"/></svg>`;
 
 export function applyI18N() {
-    window.I18N = LOCALES[currentLang];
+    const langData = LOCALES[currentLang];
+    for (const key of Object.keys(langData)) {
+        window.I18N[key] = langData[key];
+    }
     document.documentElement.lang = currentLang;
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const val = I18N[el.dataset.i18n];
