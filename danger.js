@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildingMeshes, unitsPerMeter, _up, DEG, sceneCenter, sceneBounds3 } from './scene.js';
+import { getCount, getAzDeg, getAzRad } from './params.js';
 
 const I = window.I18N;
 
@@ -22,19 +23,6 @@ const _colorRed = new THREE.Color(0xf85149);
 
 export let cityAvgDanger = 0;
 const cityAvgSamples = [];
-
-export function readTypeParams(type) {
-    const countEl = document.getElementById(`${type}-count`);
-    const azEl = document.getElementById(`${type}-az`);
-    let count = parseInt(countEl.value, 10);
-    let azDeg = parseFloat(azEl.value);
-    if (isNaN(count) || count < 0) { count = 0; countEl.value = 0; }
-    if (count > 50) { count = 50; countEl.value = 50; }
-    if (isNaN(azDeg)) { azDeg = 0; azEl.value = 0; }
-    azDeg = Math.max(0, Math.min(359, Math.round(azDeg)));
-    if (parseFloat(azEl.value) !== azDeg) azEl.value = azDeg;
-    return { count, az: azDeg * DEG };
-}
 
 // Raycast occlusion check: true if a building blocks line-of-sight from origin in dir direction
 export function isBlocked(origin, dir, facadePoint, facadeNormal) {
@@ -90,20 +78,21 @@ export function computeExposure(point, normal, mesh) {
     const result = {};
 
     for (const t of ATTACK_TYPES) {
-        const { count, az } = readTypeParams(t.key);
+        const count = getCount(t.key);
         if (count === 0) {
             result[t.key] = { open: false, exposure: 0, weight: t.weight, count: 0, angle: t.angle };
             continue;
         }
+        const azRad = getAzRad(t.key);
         const alpha = t.angle * DEG;
         _attackDir.set(
-            -Math.cos(alpha) * Math.sin(az),
+            -Math.cos(alpha) * Math.sin(azRad),
             Math.sin(alpha),
-            Math.cos(alpha) * Math.cos(az)
+            Math.cos(alpha) * Math.cos(azRad)
         );
         const facingDot = normal.dot(_attackDir);
         if (facingDot <= 0) {
-            result[t.key] = { open: false, exposure: 0, weight: t.weight, count, angle: t.angle, azDeg: (az / DEG).toFixed(0), blockedCount: 4 };
+            result[t.key] = { open: false, exposure: 0, weight: t.weight, count, angle: t.angle, azDeg: getAzDeg(t.key), blockedCount: 4 };
             continue;
         }
         let blockedCount = 0;
@@ -119,7 +108,7 @@ export function computeExposure(point, normal, mesh) {
             weight: t.weight,
             count,
             angle: t.angle,
-            azDeg: (az / DEG).toFixed(0),
+            azDeg: getAzDeg(t.key),
             blockedCount
         };
     }

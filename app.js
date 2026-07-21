@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { renderer, camera, scene, controls, ground, container, buildingMeshes, sceneCenter, sceneSize, unitsPerMeter, DEG, loadBar, _up } from './scene.js';
 import { initBuildings, ensureBuildingsAt, toGPS, latLngToMeters, getLoadedBounds } from './buildings.js';
-import { ATTACK_TYPES, computeExposure, dangerScore, smoothDangerColor, readTypeParams, getFacadeBasis, computeAdaptiveHalf, isBlocked, buildCitySamples, computeCityAverage, cityAvgDanger } from './danger.js';
+import { ATTACK_TYPES, computeExposure, dangerScore, smoothDangerColor, getFacadeBasis, computeAdaptiveHalf, isBlocked, buildCitySamples, computeCityAverage, cityAvgDanger } from './danger.js';
 import { computeDirectionScores, renderDirectionDiagram } from './direction-diagram.js';
+import { getCount, getAzDeg, getAzRad, setParams } from './params.js';
 
 const I = window.I18N;
 const facadeInfoEl = document.getElementById('facade-info');
@@ -110,8 +111,8 @@ function createDirectionRays(point, normal, exposure, mesh) {
     for (const t of ATTACK_TYPES) {
         const e = exposure[t.key];
         if (e.count === 0) continue;
-        const { az } = readTypeParams(t.key);
-        const srcAz = az + Math.PI;
+        const azRad = getAzRad(t.key);
+        const srcAz = azRad + Math.PI;
         const alpha = t.angle * DEG;
         _attackDir.set(-Math.cos(alpha) * Math.sin(srcAz), Math.sin(alpha), Math.cos(alpha) * Math.cos(srcAz));
         for (const corner of _corners) {
@@ -301,10 +302,7 @@ document.getElementById('zoom-out').addEventListener('click', (e) => {
 function rebuildAttacks() {
     let total = 0;
     for (const t of ATTACK_TYPES) {
-        const el = document.getElementById(`${t.key}-count`);
-        let count = parseInt(el.value, 10);
-        if (isNaN(count) || count < 0) { count = 0; el.value = 0; }
-        if (count > 50) { count = 50; el.value = 50; }
+        const count = getCount(t.key);
         document.getElementById(`${t.key}-badge`).textContent = count;
         total += count;
     }
@@ -315,8 +313,19 @@ function rebuildAttacks() {
 window.rebuildAttacks = rebuildAttacks;
 
 ['drone', 'missile', 'ballistic'].forEach(type => {
-    ['count', 'az'].forEach(param => {
-        document.getElementById(`${type}-${param}`).addEventListener('input', rebuildAttacks);
+    document.getElementById(`${type}-count`).addEventListener('input', () => {
+        const el = document.getElementById(`${type}-count`);
+        const val = parseInt(el.value, 10);
+        setParams(type, val, getAzDeg(type));
+        el.value = getCount(type);
+        rebuildAttacks();
+    });
+    document.getElementById(`${type}-az`).addEventListener('input', () => {
+        const el = document.getElementById(`${type}-az`);
+        const val = parseFloat(el.value);
+        setParams(type, getCount(type), val);
+        el.value = getAzDeg(type);
+        rebuildAttacks();
     });
 });
 

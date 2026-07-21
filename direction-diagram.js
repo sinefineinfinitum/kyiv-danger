@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DEG, unitsPerMeter } from './scene.js';
 import { ATTACK_TYPES, getFacadeBasis, computeAdaptiveHalf, isBlocked } from './danger.js';
+import { getCount } from './params.js';
 
 // Temp vectors for hot function
 const _v = new THREE.Vector3();
@@ -18,7 +19,7 @@ export function computeDirectionScores(point, normal, mesh) {
 
     const typeCounts = {};
     for (const t of ATTACK_TYPES) {
-        typeCounts[t.key] = parseInt(document.getElementById(`${t.key}-count`).value);
+        typeCounts[t.key] = getCount(t.key);
     }
     const hasAny = Object.values(typeCounts).some(c => c > 0);
     if (!hasAny) return [];
