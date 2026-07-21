@@ -1,3 +1,5 @@
+import { createCompass } from './compass.js';
+
 const LOCALES = {
     uk: {
         title: 'Поле ймовірностей атак',
@@ -144,7 +146,7 @@ window.I18N = LOCALES[currentLang];
 const _mbtn = (side) =>
     `<svg class="mbtn" viewBox="0 0 14 22" width="9" height="14"><rect x="1" y="1" width="12" height="20" rx="6" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="7" y1="1" x2="7" y2="12" stroke="currentColor" stroke-width="0.8" opacity="0.3"/><rect x="${side === 'l' ? 2 : 8}" y="2" width="4" height="7" rx="2" fill="currentColor" opacity="0.6"/></svg>`;
 
-function applyI18N() {
+export function applyI18N() {
     window.I18N = LOCALES[currentLang];
     document.documentElement.lang = currentLang;
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -171,16 +173,15 @@ function applyI18N() {
     });
 }
 
-function switchLang(lang) {
+export function switchLang(lang) {
     currentLang = lang;
     localStorage.setItem('lang', lang);
     applyI18N();
-    if (typeof rebuildAttacks === 'function') rebuildAttacks();
+    if (typeof window.rebuildAttacks === 'function') window.rebuildAttacks();
     document.querySelectorAll('.compass-wrap svg').forEach(svg => svg.remove());
     createCompass('drone');
     createCompass('missile');
     createCompass('ballistic');
 }
 
-window.switchLang = switchLang;
-window.applyI18N = applyI18N;
+

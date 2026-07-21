@@ -178,9 +178,10 @@
     </div>
 </div>
 
-<script src="locale.js"></script>
-<script src="compass.js"></script>
-<script>
+<script type="module">
+    import { applyI18N, switchLang } from './locale.js';
+    import { createCompass } from './compass.js';
+
     applyI18N();
 
     document.querySelectorAll('.lang-btn').forEach(btn => {

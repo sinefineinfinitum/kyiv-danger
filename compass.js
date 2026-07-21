@@ -6,7 +6,7 @@ const CY = COMPASS_SIZE / 2;
 const R_OUTER = 58;
 const R_LABEL = 50;
 
-function createCompass(type) {
+export function createCompass(type) {
     const color = COMPASS_COLORS[type];
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
@@ -44,10 +44,10 @@ function createCompass(type) {
     }
 
     const dirs = [
-        { label: I18N.compassN, angle: 0 },
-        { label: I18N.compassE, angle: 90 },
-        { label: I18N.compassS, angle: 180 },
-        { label: I18N.compassW, angle: 270 }
+        { label: window.I18N.compassN, angle: 0 },
+        { label: window.I18N.compassE, angle: 90 },
+        { label: window.I18N.compassS, angle: 180 },
+        { label: window.I18N.compassW, angle: 270 }
     ];
     for (const d of dirs) {
         const a = (d.angle - 90) * Math.PI / 180;
