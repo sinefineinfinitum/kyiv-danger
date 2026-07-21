@@ -129,12 +129,16 @@
             <div class="bar-container"><div class="bar" id="loadBar"></div></div>
         </div>
         <div id="legend">
-            <div><div class="ldot" style="background:#f0883e"></div> <span data-i18n="drone">Drones</span></div>
-            <div><div class="ldot" style="background:#58a6ff"></div> <span data-i18n="missile">Cruise Missiles</span></div>
-            <div><div class="ldot" style="background:#f85149"></div> <span data-i18n="ballistic">Ballistic Missiles</span></div>
-            <div class="legend-sep">
-                <div class="legend-open"><span data-i18n="openToAttack">▸ open to attack</span></div>
-                <div class="legend-closed"><span data-i18n="closedByBuilding">▸ blocked by building</span></div>
+            <div class="legend-cols">
+                <div class="legend-col">
+                    <div><div class="ldot" style="background:#f0883e"></div> <span data-i18n="drone">Drones</span></div>
+                    <div><div class="ldot" style="background:#58a6ff"></div> <span data-i18n="missile">Cruise Missiles</span></div>
+                    <div><div class="ldot" style="background:#f85149"></div> <span data-i18n="ballistic">Ballistic Missiles</span></div>
+                </div>
+                <div class="legend-col legend-states">
+                    <div class="legend-open"><span data-i18n="openToAttack">▸ open to attack</span></div>
+                    <div class="legend-closed"><span data-i18n="closedByBuilding">▸ blocked by building</span></div>
+                </div>
             </div>
             <div class="legend-sep">
                 <div id="controls-hint" data-i18n="controlsHint"></div>

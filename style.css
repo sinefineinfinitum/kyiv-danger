@@ -439,11 +439,22 @@ canvas {
     font-size: 11px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     z-index: 5;
 }
 
-#legend div {
+.legend-cols {
+    display: flex;
+    gap: 14px;
+}
+
+.legend-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.legend-col > div {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -456,9 +467,8 @@ canvas {
 }
 
 .legend-sep {
-    margin-top: 4px;
     border-top: 1px solid var(--border);
-    padding-top: 4px;
+    padding-top: 6px;
 }
 
 .legend-open { color: var(--accent-ballistic); }

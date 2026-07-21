@@ -23,7 +23,7 @@ const LOCALES = {
         openToAttack: '▸ фронт відкритий до прямої атаки',
         closedByBuilding: '▸ фронт недоступний для прямої атаки',
         mouseHint: '{lmb} ЛМК — фокус · {rmb} ПМК — фасад',
-        controlsHint: '{lmb} ЛМК — фокус камери\n{rmb} ПМК — вибір фасаду\nEsc — скасувати вибір фасаду',
+        controlsHint: 'ЛМК — фокус камери\nПМК — вибір фасаду\nEsc — скасувати вибір фасаду',
 
         zoomIn: 'Приблизити',
         zoomOut: 'Віддалити',
@@ -68,7 +68,7 @@ const LOCALES = {
         openToAttack: '▸ фронт открыт к прямой атаке',
         closedByBuilding: '▸ фронт недоступен для прямой атаки',
         mouseHint: '{lmb} ЛКМ — фокус · {rmb} ПКМ — фасад',
-        controlsHint: '{lmb} ЛКМ — фокус камеры\n{rmb} ПКМ — выбор фасада\nEsc — отменить выбор фасада',
+        controlsHint: 'ЛКМ — фокус камеры\nПКМ — выбор фасада\nEsc — отменить выбор фасада',
 
         zoomIn: 'Приблизить',
         zoomOut: 'Отдалить',
@@ -114,7 +114,7 @@ const LOCALES = {
         openToAttack: '▸ front open to direct attack',
         closedByBuilding: '▸ front closed to direct attack',
         mouseHint: '{lmb} LMB — focus · {rmb} RMB — facade',
-        controlsHint: '{lmb} LMB — camera focus\n{rmb} RMB — select facade\nEsc — cancel facade selection',
+        controlsHint: 'LMB — camera focus\nRMB — select facade\nEsc — cancel facade selection',
 
         zoomIn: 'Zoom in',
         zoomOut: 'Zoom out',
