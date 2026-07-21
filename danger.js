@@ -20,17 +20,17 @@ const _attackDir = new THREE.Vector3();
 const _corners = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
 const _colorGreen = new THREE.Color(0x3fb950);
 const _colorRed = new THREE.Color(0xf85149);
+const _raycaster = new THREE.Raycaster();
 
 export let cityAvgDanger = 0;
 const cityAvgSamples = [];
 
 // Raycast occlusion check: true if a building blocks line-of-sight from origin in dir direction
 export function isBlocked(origin, dir, facadePoint, facadeNormal) {
-    const raycaster = new THREE.Raycaster();
-    raycaster.set(origin, dir);
-    raycaster.near = 0;
-    raycaster.far = 500 * unitsPerMeter;
-    const hits = raycaster.intersectObjects(buildingMeshes, false);
+    _raycaster.set(origin, dir);
+    _raycaster.near = 0;
+    _raycaster.far = 500 * unitsPerMeter;
+    const hits = _raycaster.intersectObjects(buildingMeshes, false);
     const selfThreshold = 3 * unitsPerMeter;
     return hits.some(h => {
         _v.subVectors(h.point, facadePoint);
